@@ -23,30 +23,144 @@
 #include <sys/types.h> /* for pid_t */
 #include <sys/wait.h> /* for wait */
 
-/* This is a trivial JNI example where we use a native method
- * to return a new VM String. See the corresponding Java source
- * file located at:
- *
- *   apps/samples/hello-jni/project/src/com/example/hellojni/HelloJni.java
- */
-jstring
-Java_com_skiwin_switcher_SkiWinSwitcher_stringFromJNI( JNIEnv* env,
-                                                  jobject thiz )
+pid_t skiwinPid = -1;
+
+#define PROGRAM_NAME "/system/bin/SkiWin"
+
+/*
+One character from the string "RSDZTW" where  
+R is running,  
+S is sleeping in an interruptible wait, 
+D is waiting in uninterruptible disk sleep,
+Z is zombie,
+T is traced or stopped (on a signal), 
+W is paging.
+*/
+
+#define PROCESS_RUNNING                 'R'
+#define PROCESS_WAIT_INTERRUPTABLE      'S'
+#define PROCESS_WAIT_UNINTERRUPTABLE    'D'
+#define PROCESS_ZOMBIE                  'Z'
+#define PROCESS_TRACED_STOPPED          'T'
+#define PROCESS_PAGING                  'W'
+
+struct procstat { 
+    int pid;               // %d 
+    char comm[256];        // %s
+    char state;            // %c
+    };
+
+/*
+
+/proc/[number]/stat
+          Status  information  about  the process. This is used by ps(1).
+          It is defined in /usr/src/linux/fs/proc/array.c.
+
+          The fields, in order, with their proper scanf(3) format speci-
+          fiers, are:
+
+          pid %d The process ID.
+
+          comm %s
+             The  filename of the executable, in parentheses.  This is
+             visible whether or not the executable is swapped out.
+
+          state %c
+             One character from the string "RSDZTW" where  R is run-
+             ning,  S is sleeping in an interruptible wait, D is wait-
+             ing in uninterruptible disk sleep, Z is zombie, T is
+             traced or stopped (on a signal), and W is paging.
+
+*/
+static char readStat(int pid) 
+    { 
+    const char *format = "%d %s %c"; 
+    struct procstat stat;
+    
+    char buf[256]; 
+    
+    FILE *proc; 
+    
+    sprintf(buf,"/proc/%d/stat",pid); 
+    
+    proc = fopen(buf,"r"); 
+    
+    if (proc) 
+        { 
+        if (3 == fscanf(proc, format, &stat.pid, stat.comm, &stat.state)) 
+            { 
+            fclose(proc); 
+            return stat.state; 
+            } 
+        else 
+            { 
+            fclose(proc); 
+            return PROCESS_ZOMBIE; 
+            } 
+        } 
+    else 
+        {  
+        return PROCESS_ZOMBIE; 
+        } 
+    }
+
+void
+Java_com_skiwin_switcher_SkiWinSwitcher_startSkiWinJNI(JNIEnv* env, jobject thiz)
 {
-	#if 0
-    /*Spawn a child to run the program.*/
+if (skiwinPid == -1)
+    {
+    ALOGD("SSSSSSSSSSSSSSSSSSSSSSSSSSSSJava_com_skiwin_switcher_SkiWinSwitcher_startSkiWinJNI\n");
     pid_t pid=fork();
     if (pid==0) { /* child process */
         static char *argv[]={"echo","Foo is my name.",NULL};
-		ALOGD("xxxxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n");
-        execv("/system/bin/SkiWin",argv);
+        ALOGD("TTTTTTTTTTTTTTTTTTTT\n");
+        execv(PROGRAM_NAME, argv);
         exit(127); /* only if execv fails */
-    }
+        skiwinPid = -1;
+        ALOGD("EEEEEEEEEEEEEEEEEEEE\n");
+        }
     else { /* pid!=0; parent process */
-        waitpid(pid,0,0); /* wait for child to exit */
+        skiwinPid = pid;
+        ALOGD("PPPPPPPPPPPPPPPPPPPP child=%d\n", skiwinPid);
+        //waitpid(pid,0,0); /* wait for child to exit */
+        }
     }
-	#else
- 	system("/system/bin/SkiWin");
-	#endif
-    return (*env)->NewStringUTF(env, "Hello from JNI2 !");
+
 }
+
+void
+Java_com_skiwin_switcher_SkiWinSwitcher_suspendSkiWinJNI(JNIEnv* env, jobject thiz)
+    {
+    if (skiwinPid != -1)
+        {
+        ALOGD("KKKKKKKKKKKKKKKKKKKKKKKKKKKKJava_com_skiwin_switcher_SkiWinSwitcher_suspendSkiWinJNI\n");
+        kill(skiwinPid, SIGSTOP);
+        }
+    }
+
+void
+Java_com_skiwin_switcher_SkiWinSwitcher_resumeSkiWinJNI(JNIEnv* env, jobject thiz)
+    {
+    if ((skiwinPid != -1) && (readStat(skiwinPid) == PROCESS_TRACED_STOPPED))
+        {
+        ALOGD("RRRRRRRRRRRRRRRRRRRRRRRRRRRRJava_com_skiwin_switcher_SkiWinSwitcher_resumeSkiWinJNI\n");
+
+        kill(skiwinPid, SIGCONT);
+        }
+    else
+        {
+        ALOGD("RRRRRRRRRRRRRRRRRRRRRRRRRRRR===>Java_com_skiwin_switcher_SkiWinSwitcher_startSkiWinJNI\n");
+
+        if ((skiwinPid != -1) && (readStat(skiwinPid) == PROCESS_ZOMBIE))
+            {
+            ALOGD("RRRRRRRRRRRRRRRRRRRRRRRRRRRR===>KILL PROCESS_ZOMBIE\n");
+            kill(skiwinPid, SIGTERM);
+            kill(skiwinPid, SIGKILL);
+            waitpid(skiwinPid,0,0); /* wait for child to exit */
+            skiwinPid = -1;
+            }
+
+        Java_com_skiwin_switcher_SkiWinSwitcher_startSkiWinJNI(env, thiz);
+        }
+    }
+
