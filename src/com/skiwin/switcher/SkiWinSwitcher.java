@@ -22,21 +22,17 @@ import android.hardware.input.InputManager;
 
 public class SkiWinSwitcher extends Activity
 {
-    /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState)
 		{
 		super.onCreate(savedInstanceState);
-
-		//startSkiWinJNI();
-
 		}
 	
 	@Override
 	public void onStart()
 		{
 		super.onStart();
-		//resumeSkiWinJNI();
+		
 		startSkiWinJNI();		
 		}
 		
@@ -54,19 +50,10 @@ public class SkiWinSwitcher extends Activity
 		suspendSkiWinJNI();
 		}
 
-    /* A native method that is implemented by the
-     * 'hello-jni' native library, which is packaged
-     * with this application.
-     */
     public native void startSkiWinJNI();
     public native void suspendSkiWinJNI();
     public native void resumeSkiWinJNI();
 
-    /* this is used to load the 'SkiWinSwitcher' library on application
-     * startup. The library has already been unpacked into
-     * /data/data/com.skiwin.switcher/lib/libSkiWinSwitcher.so at
-     * installation time by the package manager.
-     */
     static {
         System.loadLibrary("SkiWinSwitcher");
     }

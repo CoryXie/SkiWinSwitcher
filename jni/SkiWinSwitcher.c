@@ -109,19 +109,15 @@ Java_com_skiwin_switcher_SkiWinSwitcher_startSkiWinJNI(JNIEnv* env, jobject thiz
 {
 if (skiwinPid == -1)
     {
-    ALOGD("SSSSSSSSSSSSSSSSSSSSSSSSSSSSJava_com_skiwin_switcher_SkiWinSwitcher_startSkiWinJNI\n");
     pid_t pid=fork();
     if (pid==0) { /* child process */
         static char *argv[]={"echo","Foo is my name.",NULL};
-        ALOGD("TTTTTTTTTTTTTTTTTTTT\n");
         execv(PROGRAM_NAME, argv);
         exit(127); /* only if execv fails */
         skiwinPid = -1;
-        ALOGD("EEEEEEEEEEEEEEEEEEEE\n");
         }
     else { /* pid!=0; parent process */
         skiwinPid = pid;
-        ALOGD("PPPPPPPPPPPPPPPPPPPP child=%d\n", skiwinPid);
         //waitpid(pid,0,0); /* wait for child to exit */
         }
     }
@@ -133,7 +129,6 @@ Java_com_skiwin_switcher_SkiWinSwitcher_suspendSkiWinJNI(JNIEnv* env, jobject th
     {
     if (skiwinPid != -1)
         {
-        ALOGD("KKKKKKKKKKKKKKKKKKKKKKKKKKKKJava_com_skiwin_switcher_SkiWinSwitcher_suspendSkiWinJNI\n");
         kill(skiwinPid, SIGSTOP);
         }
     }
@@ -143,17 +138,12 @@ Java_com_skiwin_switcher_SkiWinSwitcher_resumeSkiWinJNI(JNIEnv* env, jobject thi
     {
     if ((skiwinPid != -1) && (readStat(skiwinPid) == PROCESS_TRACED_STOPPED))
         {
-        ALOGD("RRRRRRRRRRRRRRRRRRRRRRRRRRRRJava_com_skiwin_switcher_SkiWinSwitcher_resumeSkiWinJNI\n");
-
         kill(skiwinPid, SIGCONT);
         }
     else
         {
-        ALOGD("RRRRRRRRRRRRRRRRRRRRRRRRRRRR===>Java_com_skiwin_switcher_SkiWinSwitcher_startSkiWinJNI\n");
-
         if ((skiwinPid != -1) && (readStat(skiwinPid) == PROCESS_ZOMBIE))
             {
-            ALOGD("RRRRRRRRRRRRRRRRRRRRRRRRRRRR===>KILL PROCESS_ZOMBIE\n");
             kill(skiwinPid, SIGTERM);
             kill(skiwinPid, SIGKILL);
             waitpid(skiwinPid,0,0); /* wait for child to exit */
